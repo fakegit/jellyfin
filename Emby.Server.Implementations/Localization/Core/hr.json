@@ -57,7 +57,7 @@
     "UserDownloadingItemWithValues": "{0} preuzima {1}",
     "UserLockedOutWithName": "Korisnik {0} je zaključan",
     "UserOfflineFromDevice": "{0} prekinuo vezu od {1}",
-    "UserOnlineFromDevice": "{0} povezan od {1}",
+    "UserOnlineFromDevice": "{0} povezan sa {1}",
     "UserPasswordChangedWithName": "Lozinka je promijenjena za korisnika {0}",
     "UserStartedPlayingItemWithValues": "{0} je pokrenuo reprodukciju {1} na {2}",
     "UserStoppedPlayingItemWithValues": "{0} je završio reprodukciju {1} na {2}",
