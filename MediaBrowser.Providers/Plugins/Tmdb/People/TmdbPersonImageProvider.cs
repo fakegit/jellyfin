@@ -1,8 +1,4 @@
-#pragma warning disable CS1591
-
-using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
@@ -11,16 +7,23 @@ using MediaBrowser.Common.Net;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Entities;
-using MediaBrowser.Model.Extensions;
 using MediaBrowser.Model.Providers;
 
 namespace MediaBrowser.Providers.Plugins.Tmdb.People
 {
+    /// <summary>
+    /// Person image provider powered by TMDb.
+    /// </summary>
     public class TmdbPersonImageProvider : IRemoteImageProvider, IHasOrder
     {
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly TmdbClientManager _tmdbClientManager;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TmdbPersonImageProvider"/> class.
+        /// </summary>
+        /// <param name="httpClientFactory">The <see cref="IHttpClientFactory"/>.</param>
+        /// <param name="tmdbClientManager">The <see cref="TmdbClientManager"/>.</param>
         public TmdbPersonImageProvider(IHttpClientFactory httpClientFactory, TmdbClientManager tmdbClientManager)
         {
             _httpClientFactory = httpClientFactory;
@@ -33,54 +36,40 @@ namespace MediaBrowser.Providers.Plugins.Tmdb.People
         /// <inheritdoc />
         public int Order => 0;
 
+        /// <inheritdoc />
         public bool Supports(BaseItem item)
         {
             return item is Person;
         }
 
+        /// <inheritdoc />
         public IEnumerable<ImageType> GetSupportedImages(BaseItem item)
         {
-            return new List<ImageType>
-            {
-                ImageType.Primary
-            };
+            yield return ImageType.Primary;
         }
 
+        /// <inheritdoc />
         public async Task<IEnumerable<RemoteImageInfo>> GetImages(BaseItem item, CancellationToken cancellationToken)
         {
             var person = (Person)item;
 
-            if (!person.TryGetProviderId(MetadataProvider.Tmdb, out var personTmdbId))
+            if (!person.TryGetTmdbId(out var personTmdbId))
             {
                 return Enumerable.Empty<RemoteImageInfo>();
             }
 
-            var personResult = await _tmdbClientManager.GetPersonAsync(int.Parse(personTmdbId, CultureInfo.InvariantCulture), cancellationToken).ConfigureAwait(false);
-            if (personResult?.Images?.Profiles == null)
-            {
-                return Enumerable.Empty<RemoteImageInfo>();
-            }
-
-            var remoteImages = new RemoteImageInfo[personResult.Images.Profiles.Count];
             var language = item.GetPreferredMetadataLanguage();
-
-            for (var i = 0; i < personResult.Images.Profiles.Count; i++)
+            var countryCode = item.GetPreferredMetadataCountryCode();
+            var personResult = await _tmdbClientManager.GetPersonAsync(personTmdbId, language, countryCode, cancellationToken).ConfigureAwait(false);
+            if (personResult?.Images?.Profiles is null)
             {
-                var image = personResult.Images.Profiles[i];
-                remoteImages[i] = new RemoteImageInfo
-                {
-                    ProviderName = Name,
-                    Type = ImageType.Primary,
-                    Width = image.Width,
-                    Height = image.Height,
-                    Language = TmdbUtils.AdjustImageLanguage(image.Iso_639_1, language),
-                    Url = _tmdbClientManager.GetProfileUrl(image.FilePath)
-                };
+                return Enumerable.Empty<RemoteImageInfo>();
             }
 
-            return remoteImages.OrderByLanguageDescending(language);
+            return _tmdbClientManager.ConvertProfilesToRemoteImageInfo(personResult.Images.Profiles, language);
         }
 
+        /// <inheritdoc />
         public Task<HttpResponseMessage> GetImageResponse(string url, CancellationToken cancellationToken)
         {
             return _httpClientFactory.CreateClient(NamedClient.Default).GetAsync(url, cancellationToken);
